@@ -1,6 +1,7 @@
 ---
 title: "p8105_hw2_ab4669"
-output: html_document
+author: "Adrian Blanco"
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
