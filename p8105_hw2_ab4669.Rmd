@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r setup, include=FALSE}
 
 install.packages("readr")
+install.packages("janitor")
 
 ```
 
@@ -25,6 +26,7 @@ install.packages("readr")
 library(tidyverse)
 library(readxl)
 library(readr)
+library(janitor)
 
 ```
 
@@ -40,6 +42,37 @@ nyc_transit_data <- read_csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.c
 
 ```
 
+#### Clean the data
+
+```{r setup, include=FALSE}
+
+nyc_transit_data_clean <- nyc_transit_data %>% 
+  janitor::clean_names()
+
+```
+
+#### Select the data
+
+```{r setup, include=FALSE}
+
+nyc_transit_data_clean <- nyc_transit_data_clean %>%  
+  select(line:entry, 
+         vending, 
+         ada)
+
+```
+
+#### Convert entry from character to logical
+
+```{r setup, include=FALSE}
+
+nyc_transit_data_clean$entry <- ifelse(nyc_transit_data_clean$entry == "YES", TRUE, FALSE)
+
+```
+
+
+
+
 
 Read and clean the data; retain line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. Convert the entry variable from character (YES vs NO) to a logical variable (the ifelse or recode function may be useful).
 
@@ -47,10 +80,65 @@ Write a short paragraph about this dataset – explain briefly what variables th
 
 Answer the following questions using these data:
 
-How many distinct stations are there? Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here.
+How many distinct stations are there? 
+Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here.
+
+```{r setup, include=FALSE}
+
+nrow(distinct(nyc_transit_data_clean, line, station_name))
+
+```
+
+465
+
 How many stations are ADA compliant?
+
+```{r setup, include=FALSE}
+
+nrow(filter(distinct(nyc_transit_data_clean, line, station_name, ada), ada == TRUE))
+
+```
+
+84
+
 What proportion of station entrances / exits without vending allow entrance?
-Reformat data so that route number and route name are distinct variables. How many distinct stations serve the A train? Of the stations that serve the A train, how many are ADA compliant?
+
+```{r setup, include=FALSE}
+
+nrow(filter(nyc_transit_data_clean, vending == "NO" & entry == TRUE))/nrow(nyc_transit_data_clean)
+
+```
+
+Reformat data so that route number and route name are distinct variables.
+
+```{r setup, include=FALSE}
+
+nyc_transit_data_reformatted <- nyc_transit_data_clean %>%
+                      gather(key = route_number, value = route_name, route1:route11) %>%
+                      separate(route_number,
+                               into = c("delete", "route_number"),
+                               sep = 5) %>%
+                      select(-delete)
+
+```
+
+How many distinct stations serve the A train? 
+
+```{r setup, include=FALSE}
+
+nrow(filter(distinct(nyc_transit_data_reformatted, line, station_name, route_name), route_name == "A"))
+
+```
+
+
+
+Of the stations that serve the A train, how many are ADA compliant?
+
+```{r setup, include=FALSE}
+
+nrow(filter(distinct(nyc_transit_data_reformatted, line, station_name, route_name, ada), route_name == "A", ada == TRUE))
+
+```
 
 # Problem 2
 This problem uses the Mr. Trash Wheel dataset, available as an Excel file on the course website. Please use the  HealthyHarborWaterWheelTotals2017-9-26.xlsx version.
@@ -99,7 +187,7 @@ library(p8105.datasets)
 
 ```{r setup, include=FALSE}
 
-BRFSS_data <- p8105.datasets::brfss_smart2010.rda
+BRFSS_data <- p8105.datasets::brfss_smart2010
 
 ```
 
@@ -108,13 +196,114 @@ BRFSS_data <- p8105.datasets::brfss_smart2010.rda
 For this question:
 
 format the data to use appropriate variable names;
+
+```{r setup, include=FALSE}
+
+BRFSS_data <- p8105.datasets::brfss_smart2010 %>% 
+  janitor::clean_names()
+
+```
+
 focus on the “Overall Health” topic
+
+```{r setup, include=FALSE}
+
+BRFSS_data <- p8105.datasets::brfss_smart2010 %>% 
+  janitor::clean_names() %>%
+  filter(topic == "Overall Health")
+
+```
+
 exclude variables for class, topic, question, sample size, and everything from lower confidence limit to GeoLocation
+
+```{r setup, include=FALSE}
+
+BRFSS_data <- p8105.datasets::brfss_smart2010 %>% 
+  janitor::clean_names() %>%
+  filter(topic == 'Overall Health') %>%
+  select(-class, -topic, -question, -sample_size, -(confidence_limit_low:geo_location))
+
+```
+
 structure data so that values for Response (“Excellent” to “Poor”) are column names / variables which indicate the proportion of subjects with each response (which are values of Data_value in the original dataset)
+
+```{r setup, include=FALSE}
+
+BRFSS_data <- p8105.datasets::brfss_smart2010 %>% 
+  janitor::clean_names() %>%
+  filter(topic == 'Overall Health') %>%
+  select(-class, -topic, -question, -sample_size, -(confidence_limit_low:geo_location)) %>% 
+  spread(key = response, value = data_value) %>% 
+  janitor::clean_names()
+
+```
+
 create a new variable showing the proportion of responses that were “Excellent” or “Very Good”
+
+```{r setup, include=FALSE}
+
+BRFSS_data <- p8105.datasets::brfss_smart2010 %>% 
+  janitor::clean_names() %>%
+  filter(topic == 'Overall Health') %>%
+  select(-class, -topic, -question, -sample_size, -c(confidence_limit_low:geo_location)) %>% 
+  spread(key = response, value = data_value) %>% 
+  janitor::clean_names() %>%
+  mutate(excel_or_verygood = excellent + very_good)
+
+```
+
 Using this dataset, do or answer the following:
 
-How many unique locations are included in the dataset? Is every state represented? What state is observed the most?
+How many unique locations are included in the dataset? 
+
+```{r setup, include=FALSE}
+
+unique_locations <- BRFSS_data %>%
+  distinct(locationabbr) %>% 
+  count()
+
+unique_locations
+
+```
+
+51 unique_locations
+
+Is every state represented? 
+
+
+What state is observed the most?
+
 In 2002, what is the median of the “Excellent” response value?
+
+```{r setup, include=FALSE}
+
+excellent2002 <- BRFSS_data %>% 
+  filter(year == 2002) %>%
+  select(excellent) 
+
+median(excellent2002$excellent, na.rm = TRUE)
+
+```
+
+Median: 23.6
+
+
 Make a histogram of “Excellent” response values in the year 2002.
+
+```{r setup, include=FALSE}
+
+hist(excellent2002$excellent, main = "Histogram of Excellent response values in 2002.", xlab = "excellent values" )
+
+```
+
+
 Make a scatterplot showing the proportion of “Excellent” response values in New York County and Queens County (both in NY State) in each year from 2002 to 2010.
+
+```{r setup, include=FALSE}
+
+BRFSS_data %>% 
+  filter(locationdesc == "NY - New York County" | locationdesc == "NY - Queens County") %>%
+  mutate(excellent_proportion = excellent/(excellent + fair + poor + good + very_good)) %>% 
+  ggplot(aes(x = excellent_proportion, y = year)) + geom_point(aes(color = locationdesc))
+
+```
